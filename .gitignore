@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Build artifacts
+build/
+.build/
+DerivedData/
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+
+# Temporary files
+*.tmp
+*.log
+*.zip
+
+# Backup files
+*.bak
+*~
+
+# IDE
+.vscode/
+.idea/

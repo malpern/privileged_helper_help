@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Allow app to use SMAppService -->
+    <key>com.apple.security.app-sandbox</key>
+    <false/>
+    
+    <!-- Allow XPC connections -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+    
+    <!-- Allow accessing privileged helper -->
+    <key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+    <array>
+        <string>com.keypath.helperpoc.xpc</string>
+    </array>
+    
+    <!-- CRITICAL: Allow app to manage its own embedded services (likely required for macOS 15) -->
+    <key>com.apple.developer.service-management.managed-by-main-app</key>
+    <true/>
+</dict>
+</plist>
