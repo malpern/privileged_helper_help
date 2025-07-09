@@ -16,6 +16,29 @@ If your `SMAppService` helper is failing, you have likely missed one of these fi
    - **Helper Daemon:** Must have the `com.apple.security.app-sandbox` entitlement.
 5. **Correct Code Signing:** The main app and the helper **must** be signed with the same Developer ID certificate and use the Hardened Runtime.
 
+## Bundle Structure Overview
+
+The most critical requirement is getting the bundle structure exactly right. Here's what a working SMAppService helper looks like:
+
+```
+YourApp.app/
+├── Contents/
+│   ├── Info.plist ← Contains SMPrivilegedExecutables key
+│   ├── MacOS/
+│   │   └── YourApp ← Main app executable (signed)
+│   └── Library/
+│       └── LaunchDaemons/ ← CRITICAL: Helper must be here
+│           ├── YourHelper ← Helper executable (signed)
+│           └── com.yourhelper.plist ← Program: "YourHelper"
+│                                     (relative path from plist location)
+```
+
+**Key Points:**
+- Helper executable and plist **must** be in `Contents/Library/LaunchDaemons/`
+- The plist's `Program` key uses just the filename (relative to plist location)
+- Both executables must be signed with the same Developer ID
+- The `SMPrivilegedExecutables` key in main app's Info.plist references the helper
+
 ## What We're Trying to Accomplish
 
 We're building an app that integrates with [Kanata](https://github.com/jtroo/kanata), a cross-platform keyboard remapper. Our macOS implementation requires:
