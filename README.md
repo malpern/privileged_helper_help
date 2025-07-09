@@ -4,21 +4,21 @@ This repository contains a proof-of-concept implementation of a privileged helpe
 
 **We would greatly appreciate any insights or suggestions from the macOS developer community!**
 
-## TL;DR: The 5 Non-Negotiable Requirements
+## TL;DR: What We've Implemented (According to Apple's Documentation)
 
-If your `SMAppService` helper is failing, you have likely missed one of these five critical steps. This guide details each one.
+Based on Apple's documentation, we've implemented these five requirements that should make `SMAppService` work. **However, it still fails on macOS 15 beta.** We're looking for what we might be missing.
 
-1. **Correct Bundle Structure:** The helper executable and its `launchd.plist` **must** be in `YourApp.app/Contents/Library/LaunchDaemons/`.
-2. **Correct `launchd.plist`:** It **must** use the `<key>Program</key>` and the value must be just the helper's filename (e.g., `<string>HelperPOCDaemon</string>`). The path is relative to the plist's location.
-3. **Correct Main App `Info.plist`:** It **must** contain the `SMPrivilegedExecutables` key, with a code signing requirement string that exactly matches your helper's signature and Team ID.
-4. **Correct Entitlements (Both App & Helper):**
-   - **Main App:** Must have the `com.apple.developer.service-management.managed-by-main-app` entitlement.
-   - **Helper Daemon:** Must have the `com.apple.security.app-sandbox` entitlement.
-5. **Correct Code Signing:** The main app and the helper **must** be signed with the same Developer ID certificate and use the Hardened Runtime.
+1. **Bundle Structure (Per Apple Docs):** The helper executable and its `launchd.plist` are in `YourApp.app/Contents/Library/LaunchDaemons/` as specified.
+2. **`launchd.plist` Format (Per Apple Docs):** Uses the `<key>Program</key>` with just the helper's filename (e.g., `<string>HelperPOCDaemon</string>`). The path is relative to the plist's location.
+3. **Main App `Info.plist` (Per Apple Docs):** Contains the `SMPrivilegedExecutables` key with a code signing requirement string that matches our helper's signature and Team ID.
+4. **Entitlements (Based on Research):**
+   - **Main App:** Has the `com.apple.developer.service-management.managed-by-main-app` entitlement (suspected new requirement).
+   - **Helper Daemon:** Has the `com.apple.security.app-sandbox` entitlement (tested as potential requirement).
+5. **Code Signing (Per Apple Docs):** Both the main app and helper are signed with the same Developer ID certificate using Hardened Runtime.
 
 ## Bundle Structure Overview
 
-The most critical requirement is getting the bundle structure exactly right. Here's what a working SMAppService helper looks like:
+According to Apple's documentation, the bundle structure should be exactly as follows. **We've implemented this structure, but it still fails:**
 
 ```
 YourApp.app/
@@ -33,11 +33,13 @@ YourApp.app/
 │                                     (relative path from plist location)
 ```
 
-**Key Points:**
-- Helper executable and plist **must** be in `Contents/Library/LaunchDaemons/`
-- The plist's `Program` key uses just the filename (relative to plist location)
-- Both executables must be signed with the same Developer ID
-- The `SMPrivilegedExecutables` key in main app's Info.plist references the helper
+**What Apple's Documentation Specifies:**
+- Helper executable and plist should be in `Contents/Library/LaunchDaemons/`
+- The plist's `Program` key should use just the filename (relative to plist location)
+- Both executables should be signed with the same Developer ID
+- The `SMPrivilegedExecutables` key in main app's Info.plist should reference the helper
+
+**Our Implementation:** We've followed all of these requirements exactly, yet registration still fails.
 
 ## What We're Trying to Accomplish
 
@@ -218,7 +220,8 @@ codesign -dv --entitlements - /Applications/YourApp.app/Contents/Library/LaunchD
 Given that both `SMAppService` and manual `launchctl` commands fail with the same error, we believe this is either:
 
 1. **A macOS 15 beta bug** - The system-level daemon registration mechanism has issues
-2. **An undocumented security requirement** - macOS 15 may require additional entitlements or configuration we haven't discovered
+2. **An undocumented security requirement** - macOS 15 may require additional entitlements or configuration that isn't documented yet
+3. **A subtle implementation detail we've missed** - Despite following all documented requirements, there may be an undocumented requirement or configuration detail
 
 ## How to Test
 
@@ -231,19 +234,25 @@ Given that both `SMAppService` and manual `launchctl` commands fail with the sam
 ## Questions for the Community
 
 1. **Has anyone successfully used `SMAppService` for privileged daemons on macOS 15 beta?**
-2. **Are there new, undocumented requirements for privileged helpers in macOS 15?**
-3. **Is the "Unable to read plist" error familiar to anyone? What was the root cause?**
-4. **Should we be using a different approach entirely for modern macOS?**
+2. **Are there new, undocumented requirements for privileged helpers in macOS 15 that we might be missing?**
+3. **Is the "Unable to read plist" error familiar to anyone? What was the root cause in your experience?**
+4. **Can you spot anything in our implementation that doesn't match your working setup?**
+5. **Should we be using a different approach entirely for modern macOS?**
 
 ## Request for Help
 
-We've exhausted all documented approaches and many undocumented ones. If you have experience with:
+We've tried everything we can think of based on Apple's documentation and community suggestions. If you have experience with:
 - `SMAppService` on recent macOS versions
 - Privileged helper development
 - macOS 15 beta quirks
 - Alternative approaches for system-level daemons
 
 **We would be incredibly grateful for any insights, suggestions, or even just confirmation that others are experiencing similar issues.**
+
+**Specifically, we're looking for:**
+- Examples of working SMAppService implementations on macOS 15
+- Any undocumented requirements or gotchas we might have missed
+- Alternative approaches that work more reliably
 
 Feel free to:
 - Open an issue with suggestions
