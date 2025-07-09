@@ -175,7 +175,7 @@ We've exhausted all documented approaches and many undocumented ones. If you hav
 Feel free to:
 - Open an issue with suggestions
 - Submit a PR if you spot something we missed
-- Reach out on Twitter: [@yourtwitterhandle]
+- Reach out on Twitter: [@malpern](https://twitter.com/malpern)
 
 Thank you so much for taking the time to look at this! 🙏
 
