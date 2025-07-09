@@ -1,3 +1,6 @@
+// SMAppService management class - handles registration and communication with the privileged helper
+// This is where the "Unable to read plist" error occurs on macOS 15 beta
+
 import Foundation
 import ServiceManagement
 import os.log

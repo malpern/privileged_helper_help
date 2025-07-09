@@ -1,3 +1,6 @@
+// Privileged helper daemon entry point - this is the executable that SMAppService
+// attempts to register but fails with "Unable to read plist" on macOS 15 beta
+
 import Foundation
 import os.log
 

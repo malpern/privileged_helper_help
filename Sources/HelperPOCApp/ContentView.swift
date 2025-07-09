@@ -1,3 +1,6 @@
+// Main UI view - provides buttons to test SMAppService registration
+// and displays the persistent "Unable to read plist" error
+
 import SwiftUI
 import ServiceManagement
 

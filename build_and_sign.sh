@@ -1,4 +1,8 @@
 #!/bin/bash
+# Build and sign script for SMAppService privileged helper POC
+# This script creates the complete app bundle with proper code signing
+# Update DEVELOPER_ID and TEAM_ID with your own values
+
 set -e
 
 echo "Building and Signing Privileged Helper POC..."
