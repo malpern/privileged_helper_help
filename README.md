@@ -4,6 +4,18 @@ This repository contains a proof-of-concept implementation of a privileged helpe
 
 **We would greatly appreciate any insights or suggestions from the macOS developer community!**
 
+## TL;DR: The 5 Non-Negotiable Requirements
+
+If your `SMAppService` helper is failing, you have likely missed one of these five critical steps. This guide details each one.
+
+1. **Correct Bundle Structure:** The helper executable and its `launchd.plist` **must** be in `YourApp.app/Contents/Library/LaunchDaemons/`.
+2. **Correct `launchd.plist`:** It **must** use the `<key>Program</key>` and the value must be just the helper's filename (e.g., `<string>HelperPOCDaemon</string>`). The path is relative to the plist's location.
+3. **Correct Main App `Info.plist`:** It **must** contain the `SMPrivilegedExecutables` key, with a code signing requirement string that exactly matches your helper's signature and Team ID.
+4. **Correct Entitlements (Both App & Helper):**
+   - **Main App:** Must have the `com.apple.developer.service-management.managed-by-main-app` entitlement.
+   - **Helper Daemon:** Must have the `com.apple.security.app-sandbox` entitlement.
+5. **Correct Code Signing:** The main app and the helper **must** be signed with the same Developer ID certificate and use the Hardened Runtime.
+
 ## What We're Trying to Accomplish
 
 We're building an app that integrates with [Kanata](https://github.com/jtroo/kanata), a cross-platform keyboard remapper. Our macOS implementation requires:
@@ -90,6 +102,24 @@ HelperPOCApp.app/
 </plist>
 ```
 
+#### Common `launchd.plist` Mistakes
+
+The `Program` key is critical. Any of these common mistakes will cause `launchctl` to fail with a generic `Input/output error` or `SMAppService` to fail with "Unable to read plist".
+
+```xml
+<!-- WRONG: BundleProgram is for other contexts and often fails here. -->
+<key>BundleProgram</key>
+<string>HelperPOCDaemon</string>
+
+<!-- WRONG: An absolute path will fail because the app bundle is not at a fixed location. -->
+<key>Program</key>
+<string>/Applications/YourApp.app/Contents/Library/LaunchDaemons/HelperPOCDaemon</string>
+
+<!-- WRONG: A nested path is incorrect because the path is relative to the plist itself. -->
+<key>Program</key>
+<string>Contents/Library/LaunchDaemons/HelperPOCDaemon</string>
+```
+
 ## Everything We've Tried
 
 ### 1. Plist Path Formats
@@ -132,6 +162,26 @@ sudo launchctl bootstrap system /path/to/plist
 - Monitored system logs: `log stream --predicate 'subsystem == "com.apple.servicemanagement"'`
 - Verified no quarantine attributes
 - Checked extended attributes (found Dropbox attrs, but shouldn't affect functionality)
+
+### How to Verify Your Signatures
+
+Don't just sign and hope. Use these commands in Terminal to verify what the system sees.
+
+**1. Verify the main app's signature and entitlements:**
+```bash
+codesign -dv --entitlements - /Applications/YourApp.app
+```
+- Look for `Authority=Developer ID Application: Your Name (YOUR_TEAM_ID)`.
+- Look for `TeamIdentifier=YOUR_TEAM_ID`.
+- In the Entitlements blob, make sure you see `com.apple.developer.service-management.managed-by-main-app`.
+
+**2. Verify the helper daemon's signature and entitlements:**
+```bash
+codesign -dv --entitlements - /Applications/YourApp.app/Contents/Library/LaunchDaemons/YourHelper
+```
+- The `Authority` and `TeamIdentifier` must **match** the main app.
+- The `Identifier` must match what's in your `SMPrivilegedExecutables` key (e.g., `com.yourcompany.helper`).
+- In the Entitlements blob, make sure you see `com.apple.security.app-sandbox`.
 
 ## Environment Details
 
