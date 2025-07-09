@@ -23,7 +23,7 @@ We're building an app that integrates with [Kanata](https://github.com/jtroo/kan
 1. Register a privileged daemon using the modern `SMAppService` API (replacing deprecated `SMJobBless`)
 2. Execute root-level operations (Kanata requires root access for system-wide keyboard event interception)
 3. Communicate with the main app via XPC
-4. Work reliably on macOS 13+ (Ventura, Sonoma, Sequoia)
+4. Work reliably on macOS 14+ (Sonoma, Sequoia)
 
 ## The Problem
 
