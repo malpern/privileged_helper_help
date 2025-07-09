@@ -6,10 +6,10 @@ This repository contains a proof-of-concept implementation of a privileged helpe
 
 ## What We're Trying to Accomplish
 
-We're building a privileged helper daemon for [KeypathRecorder](https://github.com/keypath/keypath-recorder) that needs to:
+We're building an app that integrates with [Kanata](https://github.com/jtroo/kanata), a cross-platform keyboard remapper. Our macOS implementation requires:
 
 1. Register a privileged daemon using the modern `SMAppService` API (replacing deprecated `SMJobBless`)
-2. Execute root-level operations (specifically for system-wide keyboard/mouse event recording)
+2. Execute root-level operations (Kanata requires root access for system-wide keyboard event interception)
 3. Communicate with the main app via XPC
 4. Work reliably on macOS 13+ (Ventura, Sonoma, Sequoia)
 
