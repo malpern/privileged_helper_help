@@ -49,9 +49,27 @@ class HelperManager: ObservableObject {
             }
             
         } catch {
-            let msg = "Helper registration failed: \(error.localizedDescription)"
+            // Enhanced error logging for troubleshooting error -67028
+            let errorCode = (error as NSError).code
+            let errorDomain = (error as NSError).domain
+            let msg = "Helper registration failed: \(error.localizedDescription) (Code: \(errorCode), Domain: \(errorDomain))"
             FileLogger.shared.logError(msg)
             logger.error("\(msg)")
+            
+            // Log additional context for debugging
+            FileLogger.shared.logError("Bundle path: \(Bundle.main.bundlePath)")
+            FileLogger.shared.logError("Helper plist name: \(helperPlistName)")
+            
+            // Check if this is the specific error -67028 we're tracking
+            if errorCode == -67028 {
+                FileLogger.shared.logError("ERROR -67028 DETECTED: This is the 'Codesigning failure loading plist' error")
+                FileLogger.shared.logError("Possible causes:")
+                FileLogger.shared.logError("1. Plist should use 'BundleProgram' not 'Program' key")
+                FileLogger.shared.logError("2. Missing AssociatedBundleIdentifiers in plist")
+                FileLogger.shared.logError("3. SMPrivilegedExecutables requirement string too complex")
+                FileLogger.shared.logError("4. Code signing validation failing for embedded helper")
+            }
+            
             throw error
         }
     }

@@ -59,7 +59,7 @@ cat > "${CONTENTS_PATH}/Info.plist" << EOF
     <key>SMPrivilegedExecutables</key>
     <dict>
         <key>com.keypath.helperpoc</key>
-        <string>identifier "com.keypath.helperpoc" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "${TEAM_ID}"</string>
+        <string>identifier "com.keypath.helperpoc"</string>
     </dict>
 </dict>
 </plist>

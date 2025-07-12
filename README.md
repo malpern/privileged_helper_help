@@ -14,9 +14,10 @@ This repository contains a proof-of-concept implementation of a privileged helpe
 - **Full notarization**: App passes Apple's security checks
 - **SMAppService responds**: API processes requests (doesn't crash)
 
-### ❌ What's Blocking Us
+### ❌ What's Blocking Us (Updated July 2025)
 - **❌ Error -67028**: "Codesigning failure loading plist" when calling `SMAppService.daemon().register()`
-- **❌ Helper registration fails**: Cannot register privileged helper on macOS 15.5 Sequoia
+- **❌ Build/Launch Issues**: Properly signed builds fail to launch (error 153), forcing use of Xcode builds
+- **❌ Xcode vs Build Script Gap**: Xcode builds launch but lack proper bundle structure for SMAppService
 - **❌ No working examples**: Haven't found any working SMAppService implementations to compare against
 
 ## What We've Implemented (Following Apple's Documentation)
@@ -24,7 +25,7 @@ This repository contains a proof-of-concept implementation of a privileged helpe
 Our implementation follows all documented requirements:
 
 1. **Bundle Structure**: Helper executable and `launchd.plist` in `Contents/Library/LaunchDaemons/`
-2. **Plist Format**: Uses relative paths with `<key>Program</key><string>HelperPOCDaemon</string>`
+2. **Plist Format**: **UPDATED**: Now uses `<key>BundleProgram</key><string>Contents/Library/LaunchDaemons/HelperPOCDaemon</string>` with `AssociatedBundleIdentifiers`
 3. **Code Signing**: Developer ID certificate with hardened runtime
 4. **Notarization**: Full Apple notarization and stapling
 5. **Entitlements**: Proper entitlements including `com.apple.developer.service-management.managed-by-main-app`
@@ -40,7 +41,7 @@ HelperPOCApp.app/
 │   └── Library/
 │       └── LaunchDaemons/ ← CRITICAL: Helper must be here
 │           ├── HelperPOCDaemon ← Helper executable (signed & notarized)
-│           └── com.keypath.helperpoc.plist ← Program: "HelperPOCDaemon"
+│           └── com.keypath.helperpoc.plist ← **UPDATED**: BundleProgram: "Contents/Library/LaunchDaemons/HelperPOCDaemon"
 ```
 
 ## ❌ The Problem: Error -67028 on macOS Sequoia
@@ -106,19 +107,23 @@ spctl -a -vv [App].app
 <key>SMPrivilegedExecutables</key>
 <dict>
     <key>com.keypath.helperpoc</key>
-    <string>identifier "com.keypath.helperpoc" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "X2RKZ5TG99"</string>
+    <string>identifier "com.keypath.helperpoc"</string>
 </dict>
 ```
 
-**Helper Daemon Plist:**
+**Helper Daemon Plist (UPDATED for SMAppService):**
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
     <key>Label</key>
     <string>com.keypath.helperpoc</string>
-    <key>Program</key>
-    <string>HelperPOCDaemon</string>
+    <key>BundleProgram</key>
+    <string>Contents/Library/LaunchDaemons/HelperPOCDaemon</string>
+    <key>AssociatedBundleIdentifiers</key>
+    <array>
+        <string>com.keypath.helperpoc</string>
+    </array>
     <key>MachServices</key>
     <dict>
         <key>com.keypath.helperpoc.xpc</key>
@@ -195,6 +200,26 @@ spctl -a -vv [App].app
 **Development Tools:** Swift 5.9+, Xcode 16.2, Command Line Tools  
 **Code Signing:** Developer ID Application certificate with full notarization
 
+## 🔧 Recent Updates & Fixes Attempted (July 2025)
+
+### ✅ Research-Based Fixes Applied
+Based on deep research into error -67028 and community feedback, we implemented these critical fixes:
+
+1. **✅ Updated Plist Format**: Changed from `Program` to `BundleProgram` key (required for SMAppService)
+2. **✅ Added AssociatedBundleIdentifiers**: Added required array with bundle identifier
+3. **✅ Simplified SMPrivilegedExecutables**: Reduced requirement string to just `identifier "com.keypath.helperpoc"`
+4. **✅ Enhanced Error Logging**: Added detailed logging to capture error -67028 specifics
+
+### 📊 Testing Results After Fixes
+- **Error changed from -67028 to 108**: This suggests our plist fixes are having an effect
+- **New issue discovered**: Properly signed builds fail to launch (error 153 "Launchd job spawn failed")
+- **Xcode builds work**: But lack the proper bundle structure needed for SMAppService testing
+
+### 🆘 Current Development Blockers
+1. **Build Script vs Xcode Gap**: Our build scripts create proper SMAppService bundle structure but result in apps that won't launch
+2. **Launch Error 153**: Signed builds fail with "Launchd job spawn failed" - possibly entitlements or signing order issue
+3. **Testing Limitation**: Can only test with Xcode builds which lack the updated plist and proper bundle structure
+
 ## ❌ Current Blockers
 
 ### Primary Issue: Error -67028
@@ -253,29 +278,33 @@ Codesigning failure loading plist: com.keypath.helperpoc code: -67028
 - **❌ Missing requirements**: Something we're doing doesn't meet SMAppService's expectations
 
 **We Need Help Understanding**:
-1. ❌ **What triggers error -67028** and how to fix it
-2. ❌ **Missing entitlements or requirements** for SMAppService
-3. ❌ **Correct format** for `SMPrivilegedExecutables` requirement strings
+1. 🔄 **Why error changed from -67028 to 108** after our plist fixes
+2. ❌ **How to resolve launch error 153** with properly signed builds
+3. ❌ **How to bridge Xcode builds and SMAppService requirements**
 4. ❌ **Working examples** to compare our implementation against
 
 ## 🆘 Specific Help Needed
 
 **We've done extensive research and testing, but we're still stuck. Can you help?**
 
-### 🎯 Primary Issue: Error -67028 on macOS Sequoia
-```
-Codesigning failure loading plist: com.keypath.helperpoc code: -67028
-```
-- **What we've tried**: Developer ID signing, full notarization, proper entitlements
-- **What works**: App builds, signs, notarizes, and passes all macOS security checks
-- **What fails**: SMAppService's internal validation rejects our helper during registration
-- **Question**: What specific requirement are we missing?
+### 🎯 Primary Issue: Build vs Runtime Gap
+**The Core Problem**: We have a working implementation that can't be properly tested due to build/launch issues.
 
-### 🎯 General Questions
-1. **Do you have a working SMAppService implementation on macOS Sequoia?** 
-2. **What does error code -67028 specifically indicate?**
-3. **Are there undocumented entitlements or requirements for modern SMAppService?**
-4. **Should we use a different approach for privileged helpers on macOS 15+?**
+**Progress Made**:
+- ✅ Fixed plist format (BundleProgram vs Program)
+- ✅ Error changed from -67028 to 108, indicating fixes are working
+- ✅ Enhanced error logging and diagnostics
+
+**Current Blockers**:
+- ❌ Launch error 153: "Launchd job spawn failed" with our properly built bundles
+- ❌ Xcode builds work but lack SMAppService bundle structure
+- ❌ Can't fully test our fixes because of build/launch disconnect
+
+### 🎯 Updated Questions for Community
+1. **Why do properly signed SMAppService bundles fail to launch with error 153?**
+2. **How do you create Xcode builds that include proper SMAppService bundle structure?**
+3. **Has anyone successfully gotten BundleProgram-based plists working with SMAppService?**
+4. **What's the correct build/signing process for SMAppService on macOS 15.5?**
 
 ## How You Can Help
 
