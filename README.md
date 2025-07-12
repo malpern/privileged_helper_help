@@ -161,10 +161,12 @@ otool -s __TEXT __info_plist helperpoc-helper          # ✅ Contains SMAuthoriz
 - Apple Developer account with Developer ID certificates
 
 ### **Steps to Verify**
-1. **Clone and build**: `git clone` → Open in Xcode → Build
-2. **Verify notarization**: Follow our complete notarization workflow
-3. **Test registration**: Launch app → Click "Register Helper" → Observe Error 108
-4. **Verify configuration**: Check bundle structure matches our specification
+1. **Clone repository**: `git clone https://github.com/malpern/privileged_helper_help.git`
+2. **Open Xcode project**: Open `helperpoc/helperpoc.xcodeproj` in Xcode
+3. **Configure signing**: Set your development team in project settings
+4. **Build and run**: ⌘R → App launches successfully
+5. **Test registration**: Click "Register Helper" → Observe Error 108
+6. **Verify our analysis**: Check that bundle structure matches our specification
 
 ### **What You'll Confirm**
 - ✅ **Perfect implementation**: Every configuration detail correct
@@ -240,7 +242,7 @@ Unable to read plist: com.keypath.helperpoc.helper (Code: 108, Domain: SMAppServ
 ## 📈 **Implementation Status**
 
 ### **✅ Production-Ready Foundation**
-- **Complete Xcode project**: Proper build system with all targets configured
+- **Native Xcode project**: Clean project structure with properly configured targets
 - **Full notarization workflow**: Developer ID signing with Apple verification  
 - **Systematic configuration**: All components aligned and verified
 - **Comprehensive documentation**: Complete analysis and reproduction steps
