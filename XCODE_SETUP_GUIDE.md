@@ -1,10 +1,12 @@
-//
-//  ContentView.swift
-//  helperpoc
-//
-//  Created by Micah Alpern on 7/11/25.
-//
+# Xcode Project Setup Guide
 
+## Step 1: Replace ContentView.swift in Main App
+
+1. **In Xcode**: Click on `ContentView.swift` under the `helperpoc` target
+2. **Select all content** (Cmd+A) and **delete it**
+3. **Copy-paste this code**:
+
+```swift
 // Main UI view - provides buttons to test SMAppService registration
 // and displays the persistent "Unable to read plist" error
 
@@ -117,7 +119,39 @@ struct ContentView: View {
         }
     }
 }
+```
 
-#Preview {
-    ContentView()
-}
+## Step 2: Add Missing Swift Files to Main App
+
+**Right-click on the `helperpoc` folder** in Xcode and select **"New File"** for each of these:
+
+### HelperManager.swift
+```swift
+// [Content will be provided next]
+```
+
+### HelperProtocol.swift  
+```swift
+// [Content will be provided next]
+```
+
+### FileLogger.swift
+```swift
+// [Content will be provided next]
+```
+
+## Step 3: Setup Helper Target
+
+### Replace main.swift in helperpoc-helper target
+```swift
+// [Content will be provided next]
+```
+
+## Step 4: Add Build Phases
+
+[Instructions for build phases will be added]
+
+---
+
+**Note**: This guide will be completed step by step. Start with Step 1 and let me know when you're ready for the next files!
+```
