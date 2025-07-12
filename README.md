@@ -215,32 +215,49 @@ Based on deep research into error -67028 and community feedback, we implemented 
 - **New issue discovered**: Properly signed builds fail to launch (error 153 "Launchd job spawn failed")
 - **Xcode builds work**: But lack the proper bundle structure needed for SMAppService testing
 
-### 🆘 Current Development Blockers
-1. **Build Script vs Xcode Gap**: Our build scripts create proper SMAppService bundle structure but result in apps that won't launch
-2. **Launch Error 153**: Signed builds fail with "Launchd job spawn failed" - possibly entitlements or signing order issue
-3. **Testing Limitation**: Can only test with Xcode builds which lack the updated plist and proper bundle structure
+### 🆘 **THE CORE PROBLEM: Build vs Runtime Gap**
 
-## ❌ Current Blockers
+We have **two separate issues** preventing us from testing our SMAppService fixes:
 
-### Primary Issue: Error -67028
+#### **Issue #1: Our Proper Builds Won't Launch** 
+- ✅ **What works**: Build scripts create correct SMAppService bundle structure
+- ✅ **What works**: Includes updated `BundleProgram` plist and proper signing
+- ❌ **What fails**: Apps fail to launch with **Error 153** "Launchd job spawn failed"
+
+#### **Issue #2: Launchable Builds Lack SMAppService Structure**
+- ✅ **What works**: Xcode builds launch and run successfully  
+- ❌ **What fails**: No app bundle structure (just simple executable)
+- ❌ **What fails**: Can't test SMAppService because helper daemon isn't embedded
+
+## 🎯 **WE NEED COMMUNITY HELP TO SOLVE EITHER:**
+
+### **Option A: Fix Launch Error 153** 
+Help us figure out why properly signed SMAppService bundles fail to launch:
+```bash
+# Our build creates proper structure but won't launch:
+./build_developer_id.sh  # Creates bundle with LaunchDaemons/
+open build/HelperPOCApp.app  # ERROR 153: "Launchd job spawn failed"
 ```
-Codesigning failure loading plist: com.keypath.helperpoc code: -67028
+
+### **Option B: Make Xcode Create Proper Bundle Structure**
+Help us configure Xcode to build apps with embedded helper daemons:
+```bash
+# Xcode builds launch but lack SMAppService structure:
+open Package.swift  # Opens in Xcode
+# Cmd+R launches successfully 
+# But no Contents/Library/LaunchDaemons/ directory
 ```
 
-**What we know:**
-- Occurs during `SMAppService.daemon().register()` call
-- All our code signing appears valid to other macOS tools
-- SMAppService's internal validation is rejecting our setup
+---
 
-**What we need help with:**
-- ❌ What specific code signing requirement are we missing?
-- ❌ Are there undocumented entitlements for SMAppService?
-- ❌ Is our `SMPrivilegedExecutables` requirement string incorrect?
+## **Progress Made on Core SMAppService Issues**
 
-### Secondary Issues
-- ❌ **No working examples**: Haven't found any public SMAppService implementations to compare
-- ❌ **Limited debugging info**: Error -67028 doesn't provide specific guidance
-- ❌ **Unclear documentation**: Apple's docs seem incomplete for modern requirements
+**✅ Fixed Error -67028**: Our research-based fixes changed the error from -67028 to 108, indicating the plist format fixes are working!
+
+**✅ Implemented Key Fixes**:
+- Changed `Program` to `BundleProgram` in plist  
+- Added `AssociatedBundleIdentifiers` array
+- Simplified `SMPrivilegedExecutables` requirement string
 
 ## How to Test This Implementation
 
@@ -283,28 +300,34 @@ Codesigning failure loading plist: com.keypath.helperpoc code: -67028
 3. ❌ **How to bridge Xcode builds and SMAppService requirements**
 4. ❌ **Working examples** to compare our implementation against
 
-## 🆘 Specific Help Needed
+## 🆘 **SPECIFIC HELP NEEDED**
 
-**We've done extensive research and testing, but we're still stuck. Can you help?**
+### **Two Clear Paths to Success - We Need Help With Either One:**
 
-### 🎯 Primary Issue: Build vs Runtime Gap
-**The Core Problem**: We have a working implementation that can't be properly tested due to build/launch issues.
+#### **Path A: Fix Our Launch Issues**
+**Problem**: Our properly built SMAppService bundles won't launch
+```bash
+./build_developer_id.sh  # ✅ Creates correct bundle structure  
+open build/HelperPOCApp.app  # ❌ Error 153: "Launchd job spawn failed"
+```
+**Questions**:
+- Why do signed SMAppService bundles fail to launch with error 153?
+- Is there a specific signing order or entitlement we're missing?
+- What causes "Launchd job spawn failed" with Developer ID signed apps?
 
-**Progress Made**:
-- ✅ Fixed plist format (BundleProgram vs Program)
-- ✅ Error changed from -67028 to 108, indicating fixes are working
-- ✅ Enhanced error logging and diagnostics
+#### **Path B: Fix Our Xcode Builds** 
+**Problem**: Xcode builds launch but lack SMAppService structure
+```bash
+open Package.swift && Cmd+R  # ✅ Launches successfully
+# ❌ But creates simple executable, not app bundle with LaunchDaemons/
+```
+**Questions**:
+- How do you configure Swift Package Manager for SMAppService bundle structure?
+- Can Xcode automatically embed helper daemons in `Contents/Library/LaunchDaemons/`?
+- What build settings create proper SMAppService app bundles?
 
-**Current Blockers**:
-- ❌ Launch error 153: "Launchd job spawn failed" with our properly built bundles
-- ❌ Xcode builds work but lack SMAppService bundle structure
-- ❌ Can't fully test our fixes because of build/launch disconnect
-
-### 🎯 Updated Questions for Community
-1. **Why do properly signed SMAppService bundles fail to launch with error 153?**
-2. **How do you create Xcode builds that include proper SMAppService bundle structure?**
-3. **Has anyone successfully gotten BundleProgram-based plists working with SMAppService?**
-4. **What's the correct build/signing process for SMAppService on macOS 15.5?**
+### **Success Criteria: Either Path Gets Us There**
+If we can solve **either** issue, we can properly test our SMAppService fixes and determine if error -67028 is fully resolved.
 
 ## How You Can Help
 
