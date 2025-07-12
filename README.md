@@ -25,7 +25,7 @@ SMAppService registration fails with Error 108 "Unable to read plist" despite ha
 - ✅ **Full notarization**: Apple-approved Developer ID signing with stapled ticket
 - ✅ **Perfect build system**: Xcode project creates correct bundle structure
 - ✅ **All documented requirements**: Follows Apple's official SMAppService documentation
-- ✅ **Service-management entitlement**: Added to helper per Gemini analysis + full notarization (still fails)
+- ✅ **AI-tested hypotheses**: Both Gemini entitlement and path theories systematically tested (still fails)
 
 ## 📊 **What We've Systematically Verified**
 
@@ -133,10 +133,15 @@ Unable to read plist: com.keypath.helperpoc.helper (Code: 108, Domain: SMAppServ
    - Problem: Development certificates insufficient for SMAppService
    - Solution: Full Developer ID signing with notarization
 
-5. **Missing service-management entitlement (Gemini hypothesis)** ❌ NOT THE CAUSE
+5. **Missing service-management entitlement (Gemini hypothesis #1)** ❌ NOT THE CAUSE
    - Problem: Gemini suggested helper lacks required entitlement for macOS 15
    - Solution: Added `com.apple.developer.service-management.managed-by-main-app` to helper + full notarization
    - Result: **Error 108 persists** - complete hypothesis disproven
+
+6. **BundleProgram path resolution (Gemini hypothesis #2)** ❌ NOT THE CAUSE
+   - Problem: Gemini suggested simplified path might resolve launchd path validation issues
+   - Solution: Modified BundleProgram from `Contents/MacOS/helperpoc-helper` to `helperpoc-helper` + re-notarization
+   - Result: **Error 108 persists** - second hypothesis also disproven
 
 ### **Configuration Verification Process:**
 
@@ -205,7 +210,7 @@ otool -s __TEXT __info_plist helperpoc-helper          # ✅ Contains SMAuthoriz
 2. **Build system issues**: Xcode project creates perfect bundle structure  
 3. **Code signing problems**: Full production signing with Apple verification
 4. **Documentation compliance**: Implementation follows all published requirements
-5. **Missing entitlements**: Gemini-suggested service-management entitlement tested and ruled out
+5. **Missing entitlements**: Both Gemini-suggested entitlement and path theories tested and ruled out
 
 ### **What Still Needs Investigation**
 1. **macOS 15 system restrictions**: Undocumented changes in Sequoia
@@ -314,14 +319,19 @@ The systematic nature of our analysis demonstrates that this is not a configurat
 ## 🤖 **AI Model Analysis Results**
 
 **Gemini Model Consultation (July 2025):**
-- **Hypothesis**: Missing `com.apple.developer.service-management.managed-by-main-app` entitlement in helper
-- **Rationale**: macOS 15 security model requires explicit helper authorization
-- **Implementation**: Added entitlement to helper binary + complete notarization workflow
-- **Result**: ❌ **Error 108 persists** - Gemini's complete hypothesis disproven through testing
-- **Insight**: Error likely authorization-related but not this specific entitlement
 
-This consultation confirmed that while the entitlement theory was logical, the root cause remains unknown even after AI analysis.
+**Hypothesis #1: Missing service-management entitlement**
+- **Theory**: Helper lacks required `com.apple.developer.service-management.managed-by-main-app` entitlement
+- **Implementation**: Added entitlement to helper + complete notarization workflow
+- **Result**: ❌ **Error 108 persists** - first hypothesis disproven
+
+**Hypothesis #2: BundleProgram path resolution**
+- **Theory**: macOS 15 SMAppService expects simplified executable path in plist
+- **Implementation**: Modified path from `Contents/MacOS/helperpoc-helper` to `helperpoc-helper` + re-notarization  
+- **Result**: ❌ **Error 108 persists** - second hypothesis also disproven
+
+**Overall Assessment**: Both logical AI-generated theories systematically tested and ruled out. Error 108 confirmed as deeper system-level issue beyond current analysis capabilities.
 
 ---
 
-*Last Updated: July 2025 - Complete systematic analysis with production notarization + AI consultation*
+*Last Updated: July 2025 - Complete systematic analysis with production notarization + comprehensive AI testing*
