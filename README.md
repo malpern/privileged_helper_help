@@ -4,24 +4,20 @@ This repository contains a proof-of-concept implementation of a privileged helpe
 
 **Updated July 2025: Added comprehensive testing results - but still need help with remaining issues!**
 
-## TL;DR: Key Findings
+## TL;DR: Current Status on macOS Sequoia
 
-Our research reveals **significant differences** in SMAppService behavior across macOS versions:
+**We have a complete implementation following Apple's documentation, but SMAppService registration fails with a specific error:**
 
-### ✅ macOS 15.5 Sequoia (Stable Release)
-- **SMAppService API**: ✅ Functional and responsive  
-- **Registration Attempts**: ✅ Processes requests (though may fail on code signing validation)
-- **Error Pattern**: Specific error codes (-67028) indicating validation issues
-- **Developer Experience**: Much better than beta versions
+### ✅ What's Working
+- **Complete implementation**: Following all Apple documentation
+- **Proper code signing**: Developer ID certificate with hardened runtime
+- **Full notarization**: App passes Apple's security checks
+- **SMAppService responds**: API processes requests (doesn't crash)
 
-### ❌ macOS 16 Beta (Tahoe - Darwin 25.0.0)
-- **SMAppService API**: ❌ Fundamentally broken
-- **Registration Attempts**: ❌ Complete failure
-- **Error Pattern**: Generic "Unable to read plist" errors
-- **Status**: Appears to be a beta OS bug
-
-### 🎯 Recommended Target
-**macOS 15.5 Sequoia appears to be the most reliable platform for SMAppService development.**
+### ❌ What's Blocking Us
+- **❌ Error -67028**: "Codesigning failure loading plist" when calling `SMAppService.daemon().register()`
+- **❌ Helper registration fails**: Cannot register privileged helper on macOS 15.5 Sequoia
+- **❌ No working examples**: Haven't found any working SMAppService implementations to compare against
 
 ## What We've Implemented (Following Apple's Documentation)
 
@@ -47,37 +43,25 @@ HelperPOCApp.app/
 │           └── com.keypath.helperpoc.plist ← Program: "HelperPOCDaemon"
 ```
 
-## Testing Results by macOS Version
+## ❌ The Problem: Error -67028 on macOS Sequoia
 
-### macOS 16 Beta (Tahoe - Darwin 25.0.0) ❌
+When we call `SMAppService.daemon().register()`, we consistently get:
 
-**Error Pattern:**
-```
-The operation couldn't be completed. Unable to read plist: com.keypath.helperpoc
-```
-
-**Symptoms:**
-- Complete SMAppService failure
-- Manual `launchctl` commands fail with "Input/output error"
-- System-level daemon registration broken
-- No helpers appear in System Settings → Login Items
-
-**Status:** Likely a macOS 16 beta bug affecting core ServiceManagement functionality.
-
-### macOS 15.5 Sequoia (Stable) ✅⚠️
-
-**Error Pattern:**
 ```
 Codesigning failure loading plist: com.keypath.helperpoc code: -67028
 ```
 
-**Symptoms:**
-- SMAppService API responds and processes requests
-- Specific error codes indicating validation steps
-- App builds, signs, and notarizes successfully
-- Better compatibility than beta versions
+### What This Error Means
+- SMAppService can read our plist file ✅
+- SMAppService attempts to validate our code signing ✅  
+- The code signing validation fails with error -67028 ❌
 
-**Analysis:** The error suggests code signing validation issues rather than fundamental API problems. This is a **much better** starting point for development than the complete failure seen in macOS 16 beta.
+### What We've Verified Works
+- **App builds and runs**: No basic functionality issues
+- **Code signing valid**: `codesign --verify` passes, `spctl -a` shows "Notarized Developer ID"
+- **Bundle structure correct**: Helper in `Contents/Library/LaunchDaemons/` as required
+- **Plist format valid**: `plutil -lint` passes, follows Apple's examples exactly
+- **Entitlements present**: Including `com.apple.developer.service-management.managed-by-main-app`
 
 ## What We're Trying to Accomplish
 
@@ -198,41 +182,40 @@ spctl -a -vv [App].app
 - ✅ Network client permissions
 
 #### 5. macOS Version Compatibility ✅
-- ✅ macOS 15.5 Sequoia: SMAppService functional
-- ❌ macOS 16 Beta: Complete SMAppService failure
-- 📋 Recommendation: Target macOS 15.x for development
+- ✅ macOS 15.5 Sequoia: SMAppService API functional (but registration fails)
+- ✅ macOS 14.x Sonoma: Should work (needs testing)
+- 📋 Target: macOS 14+ (Sonoma, Sequoia)
 
 ## Environment Details
 
-**Testing Platforms:**
+**Testing Platform:**
 - **macOS 15.5 Sequoia** (Darwin 24.x) - Stable release
-- **macOS 16 Beta Tahoe** (Darwin 25.x) - Beta release with known issues
 
 **Hardware:** Apple Silicon (arm64)  
 **Development Tools:** Swift 5.9+, Xcode 16.2, Command Line Tools  
 **Code Signing:** Developer ID Application certificate with full notarization
 
-## Key Insights & Recommendations
+## ❌ Current Blockers
 
-### ✅ What Works (macOS 15.5 Sequoia)
-1. **SMAppService API is functional** - Responds to registration requests
-2. **Proper development workflow** - Build, sign, notarize, test cycle works
-3. **Specific error feedback** - Clear error codes for debugging
-4. **System integration** - Apps can be properly distributed and installed
+### Primary Issue: Error -67028
+```
+Codesigning failure loading plist: com.keypath.helperpoc code: -67028
+```
 
-### ❌ What's Broken (macOS 16 Beta)
-1. **Fundamental API failure** - SMAppService doesn't process requests
-2. **System-level issues** - Even manual launchctl commands fail
-3. **Generic error messages** - "Unable to read plist" with no useful details
-4. **Complete workflow breakdown** - No viable development path
+**What we know:**
+- Occurs during `SMAppService.daemon().register()` call
+- All our code signing appears valid to other macOS tools
+- SMAppService's internal validation is rejecting our setup
 
-### 🎯 Development Recommendations
+**What we need help with:**
+- ❌ What specific code signing requirement are we missing?
+- ❌ Are there undocumented entitlements for SMAppService?
+- ❌ Is our `SMPrivilegedExecutables` requirement string incorrect?
 
-1. **Target macOS 15.x** for SMAppService development
-2. **Implement full notarization** pipeline from the start
-3. **Use Developer ID certificates** (not just development certificates)
-4. **Test on stable releases** rather than beta versions
-5. **Expect error -67028** on Sequoia and debug from there
+### Secondary Issues
+- ❌ **No working examples**: Haven't found any public SMAppService implementations to compare
+- ❌ **Limited debugging info**: Error -67028 doesn't provide specific guidance
+- ❌ **Unclear documentation**: Apple's docs seem incomplete for modern requirements
 
 ## How to Test This Implementation
 
@@ -248,56 +231,51 @@ spctl -a -vv [App].app
 
 **Alternative**: Open `Package.swift` in Xcode for the best debugging experience.
 
-## Questions for the Community
+## ❌ We Need Your Help!
 
-1. **Has anyone resolved the -67028 error** on macOS 15.5 Sequoia?
-2. **Are there additional entitlements** required for SMAppService?
-3. **Is there a workaround** for the macOS 16 beta issues?
-4. **Should we expect SMAppService fixes** in later macOS 16 builds?
+### 🎯 Specific Questions
+1. **Have you successfully used SMAppService on macOS Sequoia?**
+2. **What does error -67028 specifically mean and how do you fix it?**
+3. **Are there undocumented requirements for SMAppService we're missing?**
+4. **Do you have a working implementation we can compare against?**
 
-## Current Status: Still Need Help! 🆘
+## Current Status: Stuck on Error -67028! 🆘
 
 **What's Working**: ✅ 
-- ✅ Full implementation following Apple's guidelines
-- ✅ Complete code signing and notarization pipeline  
-- ✅ SMAppService API responds on macOS 15.5
+- ✅ Complete implementation following Apple's documentation
+- ✅ Proper Developer ID signing and full notarization
+- ✅ SMAppService API responds (doesn't crash or give generic errors)
+- ✅ All macOS security tools validate our code signing
 
-**What's Still Broken**: ❌
-- ❌ **Error -67028 on macOS 15.5**: "Codesigning failure loading plist" 
-- ❌ **Complete failure on macOS 16 beta**: "Unable to read plist"
-- ❌ **Cannot register privileged helpers** on either platform
+**What's Blocking**: ❌
+- **❌ Error -67028**: SMAppService's internal validation rejects our helper
+- **❌ Cannot register helper**: `SMAppService.daemon().register()` fails consistently  
+- **❌ Missing requirements**: Something we're doing doesn't meet SMAppService's expectations
 
-**We Need Help With**:
-1. **Resolving error -67028** on macOS 15.5 Sequoia  
-2. **Understanding what we're missing** in our implementation
-3. **Working examples** of SMAppService on modern macOS
-4. **Alternative approaches** if SMAppService is fundamentally broken
+**We Need Help Understanding**:
+1. ❌ **What triggers error -67028** and how to fix it
+2. ❌ **Missing entitlements or requirements** for SMAppService
+3. ❌ **Correct format** for `SMPrivilegedExecutables` requirement strings
+4. ❌ **Working examples** to compare our implementation against
 
 ## 🆘 Specific Help Needed
 
 **We've done extensive research and testing, but we're still stuck. Can you help?**
 
-### 🎯 Most Urgent: Error -67028 on macOS 15.5
+### 🎯 Primary Issue: Error -67028 on macOS Sequoia
 ```
 Codesigning failure loading plist: com.keypath.helperpoc code: -67028
 ```
-- **What we've tried**: Developer ID signing, full notarization, correct entitlements
-- **What works**: App builds, signs, notarizes, and passes Gatekeeper  
-- **What fails**: SMAppService.daemon().register() throws this error
-- **Question**: What are we missing for the plist validation to pass?
-
-### 🎯 Secondary: macOS 16 Beta Complete Failure
-```
-The operation couldn't be completed. Unable to read plist: com.keypath.helperpoc
-```
-- **Status**: Appears to be a fundamental macOS 16 beta bug
-- **Question**: Has anyone gotten SMAppService working on macOS 16?
+- **What we've tried**: Developer ID signing, full notarization, proper entitlements
+- **What works**: App builds, signs, notarizes, and passes all macOS security checks
+- **What fails**: SMAppService's internal validation rejects our helper during registration
+- **Question**: What specific requirement are we missing?
 
 ### 🎯 General Questions
-1. **Do you have a working SMAppService implementation?** Can you share code or guidance?
-2. **Are there undocumented requirements** for SMAppService that we're missing?
-3. **Should we abandon SMAppService** and use a different approach?
-4. **Is this specific to our use case** (keyboard remapping) or universal?
+1. **Do you have a working SMAppService implementation on macOS Sequoia?** 
+2. **What does error code -67028 specifically indicate?**
+3. **Are there undocumented entitlements or requirements for modern SMAppService?**
+4. **Should we use a different approach for privileged helpers on macOS 15+?**
 
 ## How You Can Help
 
