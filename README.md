@@ -297,7 +297,6 @@ Codesigning failure loading plist: com.keypath.helperpoc code: -67028
 - **Open an issue** with suggestions, working examples, or questions
 - **Submit a PR** if you spot something we missed
 - **Reach out on Twitter**: [@malpern](https://twitter.com/malpern)
-- **Email**: malpern@me.com (for sensitive/proprietary discussions)
 
 We've been stuck on this for weeks and would be incredibly grateful for any help! 🙏
 
