@@ -20,6 +20,11 @@ xcuserdata/
 *.log
 *.zip
 
+# Code signing files (NEVER commit these!)
+*.key
+*.csr
+DeveloperID.*
+
 # Backup files
 *.bak
 *~

@@ -236,15 +236,17 @@ spctl -a -vv [App].app
 
 ## How to Test This Implementation
 
+**📋 Quick Start: See [SETUP.md](SETUP.md) for detailed setup instructions**
+
 1. **Clone this repository**
-2. **Update code signing identity** in build scripts
-3. **Set up Apple Developer Program** membership  
-4. **Run the complete pipeline:**
+2. **Update code signing identity** in `build_and_sign.sh`
+3. **Run the build:**
    ```bash
-   ./build_developer_id.sh    # Build with Developer ID
-   # Follow notarization steps in script comments
+   ./build_and_sign.sh    # Main build script
    ```
-5. **Test on macOS 15.5** (recommended) or macOS 14.x
+4. **Test on macOS 15.5** (recommended) or macOS 14.x
+
+**Alternative**: Open `Package.swift` in Xcode for the best debugging experience.
 
 ## Questions for the Community
 

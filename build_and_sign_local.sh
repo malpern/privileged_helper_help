@@ -1,33 +1,14 @@
 #!/bin/bash
-# Build and sign script for SMAppService privileged helper POC
-# This script creates the complete app bundle with proper code signing
-# 
-# IMPORTANT: Update DEVELOPER_ID and TEAM_ID with your own values below!
-#
-# To find your values:
-# 1. List certificates: security find-identity -v -p codesigning
-# 2. Look for "Developer ID Application: Your Name (TEAMID)"
-# 3. Update the variables below
+# Build and sign script using local Apple Development certificate
+# This is for testing on macOS 15.5 Sequoia
 
 set -e
 
-echo "Building and Signing Privileged Helper POC..."
+echo "Building and Signing with Apple Development certificate..."
 
-# TODO: UPDATE THESE WITH YOUR OWN VALUES!
-DEVELOPER_ID="Developer ID Application: [YOUR_NAME] ([YOUR_TEAM_ID])"
-TEAM_ID="[YOUR_TEAM_ID]"
-
-# Check if user updated the placeholder values
-if [[ "$DEVELOPER_ID" == *"[YOUR_NAME]"* ]] || [[ "$TEAM_ID" == *"[YOUR_TEAM_ID]"* ]]; then
-    echo "❌ ERROR: Please update DEVELOPER_ID and TEAM_ID with your own values!"
-    echo ""
-    echo "To find your values, run:"
-    echo "  security find-identity -v -p codesigning"
-    echo ""
-    echo "Look for 'Developer ID Application: Your Name (TEAMID)'"
-    echo "Then update the variables at the top of this script."
-    exit 1
-fi
+# Use the available Apple Development certificate
+DEVELOPER_ID="Apple Development: Micah Alpern (3YFH89N33S)"
+TEAM_ID="X2RKZ5TG99"  # Keeping the original team ID from the project
 
 # Build the Swift package
 swift build -c release
@@ -70,7 +51,7 @@ cat > "${CONTENTS_PATH}/Info.plist" << EOF
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
+    <string>15.0</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>NSHighResolutionCapable</key>
@@ -89,20 +70,17 @@ echo "Signing executables..."
 # Sign the helper daemon first (must be signed before the app)
 codesign --force --sign "${DEVELOPER_ID}" \
     --entitlements HelperPOCDaemon.entitlements \
-    --options runtime \
     --identifier "com.keypath.helperpoc" \
     "${LAUNCH_DAEMONS_PATH}/HelperPOCDaemon"
 
 # Sign the main app
 codesign --force --sign "${DEVELOPER_ID}" \
     --entitlements HelperPOCApp.entitlements \
-    --options runtime \
     "${MACOS_PATH}/${APP_NAME}"
 
 # Sign the entire app bundle
 codesign --force --sign "${DEVELOPER_ID}" \
     --entitlements HelperPOCApp.entitlements \
-    --options runtime \
     "${BUNDLE_PATH}"
 
 echo "Verifying signatures..."
@@ -116,7 +94,7 @@ echo ""
 echo "Next steps:"
 echo "1. Launch app: open ${BUNDLE_PATH}"
 echo "2. Click 'Register Helper' - system will prompt for approval"
-echo "3. Approve in System Settings > General > Login Items"
+echo "3. Approve in System Settings > Privacy & Security > Login Items"
 echo "4. Click 'Test Helper' to verify privileged operations"
 echo ""
 echo "Monitor logs:"
