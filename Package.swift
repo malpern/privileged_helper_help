@@ -15,12 +15,18 @@ let package = Package(
         .executableTarget(
             name: "HelperPOCApp",
             dependencies: [],
-            path: "Sources/HelperPOCApp"
+            path: "Sources/HelperPOCApp",
+            linkerSettings: [
+                .linkedFramework("ServiceManagement")
+            ]
         ),
         .executableTarget(
             name: "HelperPOCDaemon",
             dependencies: [],
-            path: "Sources/HelperPOCDaemon"
+            path: "Sources/HelperPOCDaemon",
+            linkerSettings: [
+                .linkedFramework("ServiceManagement")
+            ]
         ),
     ]
 )

@@ -1,98 +1,119 @@
-# macOS Privileged Helper with SMAppService - Help Needed! 🆘
+# macOS Privileged Helper with SMAppService - Help Still Needed! 🆘
 
-This repository contains a proof-of-concept implementation of a privileged helper using Apple's modern `SMAppService` API. Despite following all documented guidelines and implementing numerous fixes suggested by experienced macOS developers, we're encountering a persistent error on macOS 15 beta that we cannot resolve.
+This repository contains a proof-of-concept implementation of a privileged helper using Apple's modern `SMAppService` API. Despite comprehensive testing and following all Apple documentation, **we're still encountering errors and need community help to resolve them.**
 
-**We would greatly appreciate any insights or suggestions from the macOS developer community!**
+**Updated July 2025: Added comprehensive testing results - but still need help with remaining issues!**
 
-## TL;DR: What We've Implemented (According to Apple's Documentation)
+## TL;DR: Key Findings
 
-Based on Apple's documentation, we've implemented these five requirements that should make `SMAppService` work. **However, it still fails on macOS 15 beta.** We're looking for what we might be missing.
+Our research reveals **significant differences** in SMAppService behavior across macOS versions:
 
-1. **Bundle Structure (Per Apple Docs):** The helper executable and its `launchd.plist` are in `YourApp.app/Contents/Library/LaunchDaemons/` as specified.
-2. **`launchd.plist` Format (Per Apple Docs):** Uses the `<key>Program</key>` with just the helper's filename (e.g., `<string>HelperPOCDaemon</string>`). The path is relative to the plist's location.
-3. **Main App `Info.plist` (Per Apple Docs):** Contains the `SMPrivilegedExecutables` key with a code signing requirement string that matches our helper's signature and Team ID.
-4. **Entitlements (Based on Research):**
-   - **Main App:** Has the `com.apple.developer.service-management.managed-by-main-app` entitlement (suspected new requirement).
-   - **Helper Daemon:** Has the `com.apple.security.app-sandbox` entitlement (tested as potential requirement).
-5. **Code Signing (Per Apple Docs):** Both the main app and helper are signed with the same Developer ID certificate using Hardened Runtime.
+### ✅ macOS 15.5 Sequoia (Stable Release)
+- **SMAppService API**: ✅ Functional and responsive  
+- **Registration Attempts**: ✅ Processes requests (though may fail on code signing validation)
+- **Error Pattern**: Specific error codes (-67028) indicating validation issues
+- **Developer Experience**: Much better than beta versions
+
+### ❌ macOS 16 Beta (Tahoe - Darwin 25.0.0)
+- **SMAppService API**: ❌ Fundamentally broken
+- **Registration Attempts**: ❌ Complete failure
+- **Error Pattern**: Generic "Unable to read plist" errors
+- **Status**: Appears to be a beta OS bug
+
+### 🎯 Recommended Target
+**macOS 15.5 Sequoia appears to be the most reliable platform for SMAppService development.**
+
+## What We've Implemented (Following Apple's Documentation)
+
+Our implementation follows all documented requirements:
+
+1. **Bundle Structure**: Helper executable and `launchd.plist` in `Contents/Library/LaunchDaemons/`
+2. **Plist Format**: Uses relative paths with `<key>Program</key><string>HelperPOCDaemon</string>`
+3. **Code Signing**: Developer ID certificate with hardened runtime
+4. **Notarization**: Full Apple notarization and stapling
+5. **Entitlements**: Proper entitlements including `com.apple.developer.service-management.managed-by-main-app`
 
 ## Bundle Structure Overview
 
-According to Apple's documentation, the bundle structure should be exactly as follows. **We've implemented this structure, but it still fails:**
-
 ```
-YourApp.app/
+HelperPOCApp.app/
 ├── Contents/
 │   ├── Info.plist ← Contains SMPrivilegedExecutables key
 │   ├── MacOS/
-│   │   └── YourApp ← Main app executable (signed)
+│   │   └── HelperPOCApp ← Main app executable (signed & notarized)
 │   └── Library/
 │       └── LaunchDaemons/ ← CRITICAL: Helper must be here
-│           ├── YourHelper ← Helper executable (signed)
-│           └── com.yourhelper.plist ← Program: "YourHelper"
-│                                     (relative path from plist location)
+│           ├── HelperPOCDaemon ← Helper executable (signed & notarized)
+│           └── com.keypath.helperpoc.plist ← Program: "HelperPOCDaemon"
 ```
 
-**What Apple's Documentation Specifies:**
-- Helper executable and plist should be in `Contents/Library/LaunchDaemons/`
-- The plist's `Program` key should use just the filename (relative to plist location)
-- Both executables should be signed with the same Developer ID
-- The `SMPrivilegedExecutables` key in main app's Info.plist should reference the helper
+## Testing Results by macOS Version
 
-**Our Implementation:** We've followed all of these requirements exactly, yet registration still fails.
+### macOS 16 Beta (Tahoe - Darwin 25.0.0) ❌
+
+**Error Pattern:**
+```
+The operation couldn't be completed. Unable to read plist: com.keypath.helperpoc
+```
+
+**Symptoms:**
+- Complete SMAppService failure
+- Manual `launchctl` commands fail with "Input/output error"
+- System-level daemon registration broken
+- No helpers appear in System Settings → Login Items
+
+**Status:** Likely a macOS 16 beta bug affecting core ServiceManagement functionality.
+
+### macOS 15.5 Sequoia (Stable) ✅⚠️
+
+**Error Pattern:**
+```
+Codesigning failure loading plist: com.keypath.helperpoc code: -67028
+```
+
+**Symptoms:**
+- SMAppService API responds and processes requests
+- Specific error codes indicating validation steps
+- App builds, signs, and notarizes successfully
+- Better compatibility than beta versions
+
+**Analysis:** The error suggests code signing validation issues rather than fundamental API problems. This is a **much better** starting point for development than the complete failure seen in macOS 16 beta.
 
 ## What We're Trying to Accomplish
 
 We're building an app that integrates with [Kanata](https://github.com/jtroo/kanata), a cross-platform keyboard remapper. Our macOS implementation requires:
 
-1. Register a privileged daemon using the modern `SMAppService` API (replacing deprecated `SMJobBless`)
-2. Execute root-level operations (Kanata requires root access for system-wide keyboard event interception)
+1. Register a privileged daemon using the modern `SMAppService` API
+2. Execute root-level operations for system-wide keyboard event interception  
 3. Communicate with the main app via XPC
 4. Work reliably on macOS 14+ (Sonoma, Sequoia)
 
-## The Problem
+## Complete Implementation Details
 
-On macOS 15 beta (Darwin 25.0.0), we consistently get this error:
+### Code Signing & Notarization ✅
 
+Our testing included the full distribution pipeline:
+
+```bash
+# 1. Sign with Developer ID certificate
+codesign --force --sign "Developer ID Application: [Name] ([TeamID])" \
+    --entitlements [App].entitlements \
+    --options runtime \
+    --timestamp \
+    [App].app
+
+# 2. Submit for notarization  
+xcrun notarytool submit [App].zip --keychain-profile "Developer-altool" --wait
+
+# 3. Staple notarization ticket
+xcrun stapler staple [App].app
+
+# 4. Verify with Gatekeeper
+spctl -a -vv [App].app
+# Result: "accepted, source=Notarized Developer ID"
 ```
-The operation couldn't be completed. Unable to read plist: com.keypath.helperpoc
-```
 
-This occurs when calling:
-```swift
-SMAppService.daemon(plistName: "com.keypath.helperpoc").register()
-```
-
-Even more concerning: manual `launchctl` commands also fail with "Input/output error", suggesting a system-level issue.
-
-## Apple Documentation We're Following
-
-We've carefully followed Apple's official documentation:
-
-1. [Updating helper executables from earlier versions of macOS](https://developer.apple.com/documentation/servicemanagement/updating-helper-executables-from-earlier-versions-of-macos)
-2. [SMAppService API Reference](https://developer.apple.com/documentation/servicemanagement/smappservice)
-3. [Creating a launch daemon](https://developer.apple.com/documentation/servicemanagement/smappservice/daemon(plistname:))
-
-Key requirements from the docs:
-- Helper daemon must be in `Contents/Library/LaunchDaemons/`
-- Plist must use relative paths for embedded helpers
-- Main app must declare `SMPrivilegedExecutables` in Info.plist
-- Proper code signing with Developer ID
-
-## Our Implementation
-
-### Bundle Structure ✅
-```
-HelperPOCApp.app/
-├── Contents/
-│   ├── Info.plist                    # Contains SMPrivilegedExecutables
-│   ├── MacOS/
-│   │   └── HelperPOCApp              # Main application
-│   └── Library/
-│       └── LaunchDaemons/
-│           ├── HelperPOCDaemon       # Privileged helper executable
-│           └── com.keypath.helperpoc.plist  # Launch daemon plist
-```
+**Result**: ✅ All steps completed successfully on macOS 15.5
 
 ### Key Configuration Files
 
@@ -127,140 +148,179 @@ HelperPOCApp.app/
 </plist>
 ```
 
-#### Common `launchd.plist` Mistakes
+**Entitlements:**
 
-The `Program` key is critical. Any of these common mistakes will cause `launchctl` to fail with a generic `Input/output error` or `SMAppService` to fail with "Unable to read plist".
-
+*Main App (HelperPOCApp.entitlements):*
 ```xml
-<!-- WRONG: BundleProgram is for other contexts and often fails here. -->
-<key>BundleProgram</key>
-<string>HelperPOCDaemon</string>
-
-<!-- WRONG: An absolute path will fail because the app bundle is not at a fixed location. -->
-<key>Program</key>
-<string>/Applications/YourApp.app/Contents/Library/LaunchDaemons/HelperPOCDaemon</string>
-
-<!-- WRONG: A nested path is incorrect because the path is relative to the plist itself. -->
-<key>Program</key>
-<string>Contents/Library/LaunchDaemons/HelperPOCDaemon</string>
+<key>com.apple.security.app-sandbox</key>
+<false/>
+<key>com.apple.security.network.client</key>
+<true/>
+<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+<array>
+    <string>com.keypath.helperpoc.xpc</string>
+</array>
+<key>com.apple.developer.service-management.managed-by-main-app</key>
+<true/>
 ```
 
-## Everything We've Tried
-
-### 1. Plist Path Formats
-- ❌ `BundleProgram` with nested path: `Contents/Library/LaunchDaemons/HelperPOCDaemon`
-- ❌ `Program` with absolute path: `/Library/PrivilegedHelperTools/com.keypath.helperpoc`
-- ❌ `Program` with relative path: `HelperPOCDaemon` (current implementation)
-- ❌ `ProgramArguments` array format
-
-### 2. Code Signing & Notarization
-- ✅ Signed with Developer ID Application certificate
-- ✅ Helper daemon has explicit identifier: `com.keypath.helperpoc`
-- ✅ All signatures verify with `codesign --verify`
-- ✅ App is fully notarized and stapled
-- ✅ `spctl -a -vvv` shows: "accepted, source=Notarized Developer ID"
-
-### 3. Entitlements Attempted
-**Main App Entitlements:**
-- ✅ `com.apple.security.app-sandbox = false`
-- ✅ `com.apple.security.temporary-exception.mach-lookup.global-name`
-- ✅ `com.apple.developer.service-management.managed-by-main-app = true` (suspected new requirement)
-
-**Helper Daemon Entitlements:**
-- ❌ `com.apple.security.app-sandbox = false` (original)
-- ❌ `com.apple.security.app-sandbox = true` (tested as potential new requirement)
-
-### 4. Manual Testing
-```bash
-# Direct plist validation
-plutil -lint com.keypath.helperpoc.plist  # Result: OK
-
-# Manual launchctl attempts (all fail with "Input/output error")
-sudo launchctl load -w /path/to/plist
-sudo launchctl bootstrap system /path/to/plist
-
-# Even with simplified test plists containing absolute paths
+*Helper Daemon (HelperPOCDaemon.entitlements):*
+```xml
+<key>com.apple.security.app-sandbox</key>
+<true/>
 ```
 
-### 5. System-Level Debugging
-- Checked for existing services: `launchctl list | grep keypath` (none found)
-- Monitored system logs: `log stream --predicate 'subsystem == "com.apple.servicemanagement"'`
-- Verified no quarantine attributes
-- Checked extended attributes (found Dropbox attrs, but shouldn't affect functionality)
+### Everything We've Tested
 
-### How to Verify Your Signatures
+#### 1. Code Signing Approaches ✅
+- ✅ Developer ID Application certificate  
+- ✅ Apple Development certificate (development only)
+- ✅ Ad-hoc signing (local testing)
+- ✅ Hardened Runtime enabled
+- ✅ Proper timestamp signing
 
-Don't just sign and hope. Use these commands in Terminal to verify what the system sees.
+#### 2. Notarization Pipeline ✅
+- ✅ Full Apple notarization process
+- ✅ Notarization ticket stapling
+- ✅ Gatekeeper verification: "Notarized Developer ID"
+- ✅ App-specific password authentication
 
-**1. Verify the main app's signature and entitlements:**
-```bash
-codesign -dv --entitlements - /Applications/YourApp.app
-```
-- Look for `Authority=Developer ID Application: Your Name (YOUR_TEAM_ID)`.
-- Look for `TeamIdentifier=YOUR_TEAM_ID`.
-- In the Entitlements blob, make sure you see `com.apple.developer.service-management.managed-by-main-app`.
+#### 3. Bundle Structure Validation ✅
+- ✅ Helper in `Contents/Library/LaunchDaemons/`
+- ✅ Relative paths in plist `Program` key
+- ✅ Proper `SMPrivilegedExecutables` configuration
+- ✅ Code signing requirement strings
 
-**2. Verify the helper daemon's signature and entitlements:**
-```bash
-codesign -dv --entitlements - /Applications/YourApp.app/Contents/Library/LaunchDaemons/YourHelper
-```
-- The `Authority` and `TeamIdentifier` must **match** the main app.
-- The `Identifier` must match what's in your `SMPrivilegedExecutables` key (e.g., `com.yourcompany.helper`).
-- In the Entitlements blob, make sure you see `com.apple.security.app-sandbox`.
+#### 4. Entitlements Research ✅
+- ✅ `com.apple.developer.service-management.managed-by-main-app`
+- ✅ Sandbox configuration (enabled for helper, disabled for main app)
+- ✅ XPC service entitlements
+- ✅ Network client permissions
+
+#### 5. macOS Version Compatibility ✅
+- ✅ macOS 15.5 Sequoia: SMAppService functional
+- ❌ macOS 16 Beta: Complete SMAppService failure
+- 📋 Recommendation: Target macOS 15.x for development
 
 ## Environment Details
 
-- **macOS Version**: 15.x beta (Darwin 25.0.0)
-- **Hardware**: Apple Silicon (arm64)
-- **Development Tools**: Swift 5.9+, Xcode Command Line Tools
-- **Code Signing**: Developer ID Application: Micah Alpern (X2RKZ5TG99)
+**Testing Platforms:**
+- **macOS 15.5 Sequoia** (Darwin 24.x) - Stable release
+- **macOS 16 Beta Tahoe** (Darwin 25.x) - Beta release with known issues
 
-## What We Suspect
+**Hardware:** Apple Silicon (arm64)  
+**Development Tools:** Swift 5.9+, Xcode 16.2, Command Line Tools  
+**Code Signing:** Developer ID Application certificate with full notarization
 
-Given that both `SMAppService` and manual `launchctl` commands fail with the same error, we believe this is either:
+## Key Insights & Recommendations
 
-1. **A macOS 15 beta bug** - The system-level daemon registration mechanism has issues
-2. **An undocumented security requirement** - macOS 15 may require additional entitlements or configuration that isn't documented yet
-3. **A subtle implementation detail we've missed** - Despite following all documented requirements, there may be an undocumented requirement or configuration detail
+### ✅ What Works (macOS 15.5 Sequoia)
+1. **SMAppService API is functional** - Responds to registration requests
+2. **Proper development workflow** - Build, sign, notarize, test cycle works
+3. **Specific error feedback** - Clear error codes for debugging
+4. **System integration** - Apps can be properly distributed and installed
 
-## How to Test
+### ❌ What's Broken (macOS 16 Beta)
+1. **Fundamental API failure** - SMAppService doesn't process requests
+2. **System-level issues** - Even manual launchctl commands fail
+3. **Generic error messages** - "Unable to read plist" with no useful details
+4. **Complete workflow breakdown** - No viable development path
 
-1. Clone this repository
-2. Run `./build_and_sign.sh` (you'll need to update the Developer ID)
-3. Open `build/HelperPOCApp.app`
-4. Click "Register Helper"
-5. Observe the error in the UI or check `/tmp/helperpoc-app.log`
+### 🎯 Development Recommendations
+
+1. **Target macOS 15.x** for SMAppService development
+2. **Implement full notarization** pipeline from the start
+3. **Use Developer ID certificates** (not just development certificates)
+4. **Test on stable releases** rather than beta versions
+5. **Expect error -67028** on Sequoia and debug from there
+
+## How to Test This Implementation
+
+1. **Clone this repository**
+2. **Update code signing identity** in build scripts
+3. **Set up Apple Developer Program** membership  
+4. **Run the complete pipeline:**
+   ```bash
+   ./build_developer_id.sh    # Build with Developer ID
+   # Follow notarization steps in script comments
+   ```
+5. **Test on macOS 15.5** (recommended) or macOS 14.x
 
 ## Questions for the Community
 
-1. **Has anyone successfully used `SMAppService` for privileged daemons on macOS 15 beta?**
-2. **Are there new, undocumented requirements for privileged helpers in macOS 15 that we might be missing?**
-3. **Is the "Unable to read plist" error familiar to anyone? What was the root cause in your experience?**
-4. **Can you spot anything in our implementation that doesn't match your working setup?**
-5. **Should we be using a different approach entirely for modern macOS?**
+1. **Has anyone resolved the -67028 error** on macOS 15.5 Sequoia?
+2. **Are there additional entitlements** required for SMAppService?
+3. **Is there a workaround** for the macOS 16 beta issues?
+4. **Should we expect SMAppService fixes** in later macOS 16 builds?
 
-## Request for Help
+## Current Status: Still Need Help! 🆘
 
-We've tried everything we can think of based on Apple's documentation and community suggestions. If you have experience with:
-- `SMAppService` on recent macOS versions
-- Privileged helper development
-- macOS 15 beta quirks
-- Alternative approaches for system-level daemons
+**What's Working**: ✅ 
+- ✅ Full implementation following Apple's guidelines
+- ✅ Complete code signing and notarization pipeline  
+- ✅ SMAppService API responds on macOS 15.5
 
-**We would be incredibly grateful for any insights, suggestions, or even just confirmation that others are experiencing similar issues.**
+**What's Still Broken**: ❌
+- ❌ **Error -67028 on macOS 15.5**: "Codesigning failure loading plist" 
+- ❌ **Complete failure on macOS 16 beta**: "Unable to read plist"
+- ❌ **Cannot register privileged helpers** on either platform
 
-**Specifically, we're looking for:**
-- Examples of working SMAppService implementations on macOS 15
-- Any undocumented requirements or gotchas we might have missed
-- Alternative approaches that work more reliably
+**We Need Help With**:
+1. **Resolving error -67028** on macOS 15.5 Sequoia  
+2. **Understanding what we're missing** in our implementation
+3. **Working examples** of SMAppService on modern macOS
+4. **Alternative approaches** if SMAppService is fundamentally broken
 
-Feel free to:
-- Open an issue with suggestions
-- Submit a PR if you spot something we missed
-- Reach out on Twitter: [@malpern](https://twitter.com/malpern)
+## 🆘 Specific Help Needed
 
-Thank you so much for taking the time to look at this! 🙏
+**We've done extensive research and testing, but we're still stuck. Can you help?**
+
+### 🎯 Most Urgent: Error -67028 on macOS 15.5
+```
+Codesigning failure loading plist: com.keypath.helperpoc code: -67028
+```
+- **What we've tried**: Developer ID signing, full notarization, correct entitlements
+- **What works**: App builds, signs, notarizes, and passes Gatekeeper  
+- **What fails**: SMAppService.daemon().register() throws this error
+- **Question**: What are we missing for the plist validation to pass?
+
+### 🎯 Secondary: macOS 16 Beta Complete Failure
+```
+The operation couldn't be completed. Unable to read plist: com.keypath.helperpoc
+```
+- **Status**: Appears to be a fundamental macOS 16 beta bug
+- **Question**: Has anyone gotten SMAppService working on macOS 16?
+
+### 🎯 General Questions
+1. **Do you have a working SMAppService implementation?** Can you share code or guidance?
+2. **Are there undocumented requirements** for SMAppService that we're missing?
+3. **Should we abandon SMAppService** and use a different approach?
+4. **Is this specific to our use case** (keyboard remapping) or universal?
+
+## How You Can Help
+
+**If you've successfully used SMAppService:**
+- Share your working code (anonymized is fine)
+- Tell us what entitlements/requirements we might be missing
+- Let us know what macOS versions work for you
+
+**If you're also stuck:**
+- Try our implementation and report your results
+- Share any different error messages you're seeing
+- Compare notes on what you've tried
+
+**If you have alternatives:**
+- Suggest other approaches for privileged helper registration
+- Share experiences with older APIs (SMJobBless, etc.)
+
+**Contact Methods:**
+- **Open an issue** with suggestions, working examples, or questions
+- **Submit a PR** if you spot something we missed
+- **Reach out on Twitter**: [@malpern](https://twitter.com/malpern)
+- **Email**: malpern@me.com (for sensitive/proprietary discussions)
+
+We've been stuck on this for weeks and would be incredibly grateful for any help! 🙏
 
 ---
 
-*Note: We understand testing on macOS 14 would help isolate the issue, but we currently only have access to macOS 15 beta. If you've tested similar code on macOS 14, we'd love to hear about your experience.*
+*Last Updated: July 2025 - Added comprehensive testing results for macOS 15.5 Sequoia*
