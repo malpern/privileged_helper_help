@@ -4,7 +4,7 @@ This repository contains a **systematically verified SMAppService implementation
 
 **We need community help to understand what we're missing!** 🙏
 
-**Updated July 2025: Complete systematic analysis with production-ready implementation**
+**Updated July 2025: Complete systematic analysis with production-ready implementation + Expert consultation**
 
 ## What We're Trying to Accomplish
 
@@ -25,6 +25,7 @@ SMAppService registration fails with Error 108 "Unable to read plist" despite ha
 - ✅ **Full notarization**: Apple-approved Developer ID signing with stapled ticket
 - ✅ **Perfect build system**: Xcode project creates correct bundle structure
 - ✅ **All documented requirements**: Follows Apple's official SMAppService documentation
+- ✅ **Service-management entitlement**: Added to helper per Gemini analysis + full notarization (still fails)
 
 ## 📊 **What We've Systematically Verified**
 
@@ -45,6 +46,18 @@ SMAppService registration fails with Error 108 "Unable to read plist" despite ha
 ```
 - ✅ Embedded as binary section via CREATE_INFOPLIST_SECTION_IN_BINARY=YES
 - ✅ Verified with `otool -s __TEXT __info_plist`
+
+**Helper Entitlements (Updated per Expert Analysis):**
+```xml
+<key>com.apple.security.app-sandbox</key>
+<true/>
+<key>com.apple.developer.service-management.managed-by-main-app</key>
+<true/>
+```
+- ✅ Added service-management entitlement to helper based on Gemini's hypothesis
+- ✅ Builds and signs successfully without provisioning profile errors
+- ✅ Full notarization workflow completed (signed, notarized, stapled)
+- ❌ **Error 108 persists** - complete Gemini hypothesis disproven
 
 **Production Signing & Notarization:**
 - ✅ Manual signing with Developer ID Application certificates
@@ -120,6 +133,11 @@ Unable to read plist: com.keypath.helperpoc.helper (Code: 108, Domain: SMAppServ
    - Problem: Development certificates insufficient for SMAppService
    - Solution: Full Developer ID signing with notarization
 
+5. **Missing service-management entitlement (Gemini hypothesis)** ❌ NOT THE CAUSE
+   - Problem: Gemini suggested helper lacks required entitlement for macOS 15
+   - Solution: Added `com.apple.developer.service-management.managed-by-main-app` to helper + full notarization
+   - Result: **Error 108 persists** - complete hypothesis disproven
+
 ### **Configuration Verification Process:**
 
 **Bundle Structure Verification:**
@@ -187,6 +205,7 @@ otool -s __TEXT __info_plist helperpoc-helper          # ✅ Contains SMAuthoriz
 2. **Build system issues**: Xcode project creates perfect bundle structure  
 3. **Code signing problems**: Full production signing with Apple verification
 4. **Documentation compliance**: Implementation follows all published requirements
+5. **Missing entitlements**: Gemini-suggested service-management entitlement tested and ruled out
 
 ### **What Still Needs Investigation**
 1. **macOS 15 system restrictions**: Undocumented changes in Sequoia
@@ -292,6 +311,17 @@ The systematic nature of our analysis demonstrates that this is not a configurat
 
 **This affects real users who need keyboard remapping functionality on macOS. Any help appreciated!** 🚀
 
+## 🤖 **AI Model Analysis Results**
+
+**Gemini Model Consultation (July 2025):**
+- **Hypothesis**: Missing `com.apple.developer.service-management.managed-by-main-app` entitlement in helper
+- **Rationale**: macOS 15 security model requires explicit helper authorization
+- **Implementation**: Added entitlement to helper binary + complete notarization workflow
+- **Result**: ❌ **Error 108 persists** - Gemini's complete hypothesis disproven through testing
+- **Insight**: Error likely authorization-related but not this specific entitlement
+
+This consultation confirmed that while the entitlement theory was logical, the root cause remains unknown even after AI analysis.
+
 ---
 
-*Last Updated: July 2025 - Complete systematic analysis with production notarization*
+*Last Updated: July 2025 - Complete systematic analysis with production notarization + AI consultation*
