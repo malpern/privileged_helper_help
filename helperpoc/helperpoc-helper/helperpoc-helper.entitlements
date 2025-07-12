@@ -5,5 +5,7 @@
     <!-- CRITICAL: macOS 15 may require sandbox even for privileged helpers -->
     <key>com.apple.security.app-sandbox</key>
     <true/>
+    <key>com.apple.developer.service-management.managed-by-main-app</key>
+    <true/>
 </dict>
 </plist>

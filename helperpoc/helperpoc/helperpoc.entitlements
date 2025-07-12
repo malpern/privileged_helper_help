@@ -16,8 +16,6 @@
         <string>com.keypath.helperpoc.xpc</string>
     </array>
     
-    <!-- TESTING: Removed service-management entitlement to see if it's actually required -->
-    <!-- <key>com.apple.developer.service-management.managed-by-main-app</key> -->
-    <!-- <true/> -->
+    
 </dict>
 </plist>
