@@ -1,45 +1,44 @@
-# macOS SMAppService Implementation - Solution Identified! 🔍
+# macOS SMAppService Privileged Helper Implementation Guide
 
-This repository demonstrates a complete **SMAppService implementation** that initially failed with Error 108 "Unable to read plist" on macOS 15 Sequoia. Through community help and Apple Developer Support, we've identified what appear to be the root causes.
+A complete guide for implementing privileged helper daemons using Apple's modern SMAppService API on macOS 15+. This repository provides a working example and step-by-step instructions to avoid common configuration pitfalls.
 
-**Promising Solution!** Thanks to Quinn "The Eskimo!" @ Developer Technical Support @ Apple for identifying critical configuration issues. 🙏
+**Reference implementation for keyboard remapping and system-level operations**
 
-**Updated July 2025: Root causes identified, testing in progress**
+## Overview
 
-## 🎯 The Identified Issues
+This guide helps you implement a privileged helper daemon that can:
+1. **Register with SMAppService** - Use Apple's modern service management API
+2. **Execute privileged operations** - Run tasks requiring root permissions
+3. **Communicate via XPC** - Secure inter-process communication
+4. **Work on macOS 15+** - Compatible with Sequoia and later
 
-After extensive debugging and [posting to Apple Developer Forums](https://developer.apple.com/forums/thread/792826), Quinn "The Eskimo!" identified two critical issues:
+## 🎯 Common Issues Resolved
 
-### 1. **Mixed SMJobBless and SMAppService APIs**
-We were incorrectly using legacy SMJobBless configuration keys with the modern SMAppService API:
-- ❌ `SMAuthorizedClients` in helper's Info.plist (SMJobBless only)
-- ❌ `SMPrivilegedExecutables` in main app's Info.plist (SMJobBless only)
-- ✅ **Solution**: Remove these keys entirely - they're not used by SMAppService
+### Error 108 "Unable to read plist"
+This error typically occurs when mixing legacy SMJobBless configuration with modern SMAppService:
 
-### 2. **Missing .plist Extension**
-The `daemon(plistName:)` method requires the full filename including extension:
-- ❌ `SMAppService.daemon(plistName: "com.keypath.helperpoc.helper")`
-- ✅ `SMAppService.daemon(plistName: "com.keypath.helperpoc.helper.plist")`
+**Root Causes:**
+1. **Mixed APIs**: Using `SMAuthorizedClients`/`SMPrivilegedExecutables` (SMJobBless) with SMAppService
+2. **Missing .plist extension**: `daemon(plistName:)` requires the full filename including extension
 
-## What We're Building
+**Solutions:** See [Configuration Guide](#-correct-configuration) below.
 
-We're building an app that integrates with [Kanata](https://github.com/jtroo/kanata), a cross-platform keyboard remapper. Our macOS implementation requires:
+## 📚 Essential Documentation
 
-1. **Register a privileged daemon** using the modern `SMAppService` API
-2. **Execute root-level operations** for system-wide keyboard event interception  
-3. **Communicate with the main app** via XPC
-4. **Work reliably on macOS 15+** (Sequoia and later)
+### Apple's Official Resources
+- [Updating helper executables from earlier versions of macOS](https://developer.apple.com/documentation/servicemanagement/updating-helper-executables-from-earlier-versions-of-macos)
+- [Service Management Framework](https://developer.apple.com/documentation/servicemanagement)
 
-## 📚 Key Documentation
+### LLM-Accessible Documentation
+This repository includes `servicemanagement-updating-helper-executables-from-earlier-versions-of-macos.md` - a markdown version of Apple's documentation generated using [llm.codes](https://steipete.me/posts/2025/llm-codes-transform-developer-docs) by [@steipete](https://x.com/steipete).
 
-- **Apple's Official Guide**: [Updating helper executables from earlier versions of macOS](https://developer.apple.com/documentation/servicemanagement/updating-helper-executables-from-earlier-versions-of-macos)
-- **Local Copy**: See `servicemanagement-updating-helper-executables-from-earlier-versions-of-macos.md` in this repository
-  - This is a markdown version of Apple's documentation created using [llm.codes](https://steipete.me/posts/2025/llm-codes-transform-developer-docs?utm_source=chatgpt.com) by [@steipete](https://x.com/steipete)
-  - Necessary because (as of July 2025) LLMs can't read Apple's documentation directly due to JavaScript requirements
+**Why this matters:** Apple's documentation requires JavaScript, making it difficult for LLMs to parse. The markdown version enables AI assistants to provide accurate guidance based on official Apple documentation.
 
-## ✅ Correct SMAppService Configuration
+**Generate your own:** Use [@steipete's llm.codes tool](https://steipete.me/posts/2025/llm-codes-transform-developer-docs) to convert any Apple documentation into LLM-readable markdown format.
 
-### Main App Configuration
+## ✅ Correct Configuration
+
+### Main Application
 
 **Info.plist** - No SMAppService-specific keys needed:
 ```xml
@@ -47,20 +46,29 @@ We're building an app that integrates with [Kanata](https://github.com/jtroo/kan
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Standard app keys only -->
+    <!-- Standard app keys only - no SMPrivilegedExecutables -->
 </dict>
 </plist>
 ```
 
-**Entitlements**:
+**Entitlements** (`helperpoc.entitlements`):
 ```xml
 <key>com.apple.security.app-sandbox</key>
 <false/>
 ```
 
-### Helper Daemon Configuration
+**Swift Implementation**:
+```swift
+// CRITICAL: Include .plist extension
+private let helperPlistName = "com.keypath.helperpoc.helper.plist"
 
-**Info.plist** - Standard bundle keys only (no SMAuthorizedClients):
+let service = SMAppService.daemon(plistName: helperPlistName)
+try service.register()
+```
+
+### Helper Daemon
+
+**Info.plist** - Standard bundle keys only:
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -70,12 +78,20 @@ We're building an app that integrates with [Kanata](https://github.com/jtroo/kan
     <string>com.keypath.helperpoc.helper</string>
     <key>CFBundleName</key>
     <string>helperpoc-helper</string>
-    <!-- Other standard bundle keys -->
+    <!-- No SMAuthorizedClients with SMAppService -->
 </dict>
 </plist>
 ```
 
-**Daemon plist** (`com.keypath.helperpoc.helper.plist`):
+**Entitlements** (`helperpoc-helper.entitlements`):
+```xml
+<key>com.apple.security.app-sandbox</key>
+<true/>
+<key>com.apple.developer.service-management.managed-by-main-app</key>
+<true/>
+```
+
+**Daemon Configuration** (`com.keypath.helperpoc.helper.plist`):
 ```xml
 <dict>
     <key>Label</key>
@@ -84,7 +100,7 @@ We're building an app that integrates with [Kanata](https://github.com/jtroo/kan
     <string>Contents/MacOS/helperpoc-helper</string>
     <key>AssociatedBundleIdentifiers</key>
     <array>
-        <string>com.keypath.helperpoc</string> <!-- Main app's identifier -->
+        <string>com.keypath.helperpoc</string> <!-- Main app identifier -->
     </array>
     <key>MachServices</key>
     <dict>
@@ -94,25 +110,7 @@ We're building an app that integrates with [Kanata](https://github.com/jtroo/kan
 </dict>
 ```
 
-**Helper Entitlements**:
-```xml
-<key>com.apple.security.app-sandbox</key>
-<true/>
-<key>com.apple.developer.service-management.managed-by-main-app</key>
-<true/>
-```
-
-### Swift Implementation
-
-```swift
-// CORRECT: Include .plist extension
-private let helperPlistName = "com.keypath.helperpoc.helper.plist"
-
-let service = SMAppService.daemon(plistName: helperPlistName)
-try service.register()
-```
-
-## 🏗️ Bundle Structure
+## 🏗️ Required Bundle Structure
 
 ```
 helperpoc.app/
@@ -125,71 +123,91 @@ helperpoc.app/
 │           └── com.keypath.helperpoc.helper.plist
 ```
 
-## 🧪 Building and Testing
+## 🧪 Step-by-Step Implementation
 
-### Prerequisites
-- macOS 15.x Sequoia
+### 1. Prerequisites
+- macOS 15.x Sequoia or later
 - Xcode 16.x
 - Apple Developer account with Developer ID certificates
 
-### Steps
-1. **Clone repository**: `git clone https://github.com/malpern/privileged_helper_help.git`
-2. **Open Xcode project**: Open `helperpoc/helperpoc.xcodeproj`
-3. **Configure signing**: Set your development team in project settings
-4. **Build and run**: ⌘R
-5. **Register helper**: Click "Register Helper" button
-6. **Test result**: Pending - fixes have been applied but not yet tested
+### 2. Build and Test
+```bash
+# Clone repository
+git clone https://github.com/malpern/privileged_helper_help.git
+cd privileged_helper_help/helperpoc
 
-## 📖 Lessons Learned
+# Build project
+xcodebuild -project helperpoc.xcodeproj -scheme helperpoc -configuration Debug clean build
 
-### Common Pitfalls
-1. **Don't mix SMJobBless with SMAppService** - They use completely different configuration
-2. **Always include .plist extension** in `daemon(plistName:)`
-3. **AssociatedBundleIdentifiers** should reference the main app, not the helper
-4. **No SMAuthorizedClients or SMPrivilegedExecutables** with SMAppService
+# Launch app
+open build/Debug/helperpoc.app
+```
 
-### Key Differences: SMJobBless vs SMAppService
+### 3. Registration Process
+1. **Click "Register Helper"** - May initially show "Operation not permitted"
+2. **Approve in System Settings** - macOS will prompt for permission
+3. **Verify "Helper Status: Enabled"** - Registration successful
+4. **Test functionality** - Click "Test Helper" to verify privileged operations
+
+### 4. Troubleshooting Checklist
+
+**Error 108 "Unable to read plist":**
+- ✅ Remove `SMAuthorizedClients` from helper's Info.plist
+- ✅ Remove `SMPrivilegedExecutables` from main app's Info.plist  
+- ✅ Add `.plist` extension to `daemon(plistName:)` parameter
+- ✅ Verify `AssociatedBundleIdentifiers` references main app
+
+**"Operation not permitted":**
+- ✅ Normal first-time behavior - approve in System Settings
+- ✅ Check System Settings > General > Login Items & Extensions
+
+**Build failures:**
+- ✅ Ensure helper binary is copied to correct bundle location
+- ✅ Verify daemon plist is embedded in `Contents/Library/LaunchDaemons/`
+
+## 📖 Key Differences: SMJobBless vs SMAppService
 
 | Feature | SMJobBless (Legacy) | SMAppService (Modern) |
-|---------|-------------------|---------------------|
+|---------|---------------------|----------------------|
 | macOS Version | 10.6-13.0 | 13.0+ |
-| Authorization | SMAuthorizedClients/SMPrivilegedExecutables | Automatic with proper bundle structure |
-| Helper Location | Contents/Library/LaunchServices | Contents/Library/LaunchDaemons or LaunchAgents |
-| Plist Reference | Without extension | With .plist extension |
-| API | Deprecated | Current best practice |
+| Configuration | SMAuthorizedClients/SMPrivilegedExecutables | Bundle structure only |
+| Helper Location | Contents/Library/LaunchServices | Contents/Library/LaunchDaemons |
+| Plist Reference | Without extension | **With .plist extension** |
+| Authorization | Manual code signing validation | Automatic with proper bundle |
+| API Status | Deprecated | Current best practice |
+
+## 🔧 Advanced Configuration
+
+### XPC Communication
+The helper implements a simple XPC protocol for secure communication:
+
+```swift
+@objc protocol HelperProtocol {
+    func createTestFile(reply: @escaping (Bool, String?) -> Void)
+}
+```
+
+### Logging and Debugging
+- App logs: Check console for SMAppService registration messages
+- Helper logs: Monitor system logs for daemon execution
+- Bundle verification: Use `codesign -vvv` to verify signatures
+
+### Production Deployment
+1. **Code signing**: Use Developer ID Application certificates
+2. **Notarization**: Required for distribution outside Mac App Store
+3. **User approval**: Always required for first-time registration
 
 ## 🙏 Acknowledgments
 
-- **Quinn "The Eskimo!"** @ Developer Technical Support @ Apple - For identifying the root cause and providing clear guidance
-- **[@steipete](https://x.com/steipete)** - For creating [llm.codes](https://steipete.me/posts/2025/llm-codes-transform-developer-docs) which helped us create LLM-readable Apple documentation
-- **The macOS developer community** - For ongoing support and collaboration
+- **Quinn "The Eskimo!"** @ Apple Developer Technical Support - For identifying the root causes in [this Apple Developer Forums thread](https://developer.apple.com/forums/thread/792826)
+- **[@steipete](https://x.com/steipete)** - For creating [llm.codes](https://steipete.me/posts/2025/llm-codes-transform-developer-docs) which enabled AI-assisted debugging with proper Apple documentation
 
-## 📈 Implementation Status
+## 🔗 Additional Resources
 
-### ✅ Fixes Applied
-- ✅ Removed legacy SMJobBless configuration keys
-- ✅ Added .plist extension to daemon name
-- ✅ Fixed AssociatedBundleIdentifiers to reference main app
-- ✅ Full Developer ID signing and notarization maintained
-
-### 🧪 Testing Status
-- ⏳ **Build test**: Pending
-- ⏳ **Registration test**: Pending
-- ⏳ **Error 108 resolution**: Pending verification
-
-### 🚀 Next Steps
-1. Test the fixes to confirm Error 108 is resolved
-2. If successful, integrate with Kanata keyboard remapper
-3. Add production error handling
-4. Implement full XPC communication protocol
-
-## 🔗 Resources
-
-- [Apple Developer Forums Thread](https://developer.apple.com/forums/thread/792826)
-- [Apple Documentation: Updating helper executables](https://developer.apple.com/documentation/servicemanagement/updating-helper-executables-from-earlier-versions-of-macos)
-- [Kanata Keyboard Remapper](https://github.com/jtroo/kanata)
-- [llm.codes - Transform Developer Docs](https://steipete.me/posts/2025/llm-codes-transform-developer-docs)
+- [Apple Developer Forums Thread](https://developer.apple.com/forums/thread/792826) - Complete troubleshooting discussion
+- [Kanata Keyboard Remapper](https://github.com/jtroo/kanata) - Target integration project
+- [llm.codes Documentation Tool](https://steipete.me/posts/2025/llm-codes-transform-developer-docs) - Convert Apple docs for AI assistance
 
 ---
 
-*Last Updated: July 2025 - Root causes identified by Apple Developer Support, testing pending*
+*This guide demonstrates working SMAppService implementation on macOS 15. For questions or issues, refer to Apple's official documentation or the developer forums.*
