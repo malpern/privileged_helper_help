@@ -17,10 +17,5 @@
     <key>CFBundlePackageType</key>
     <string>BNDL</string>
     
-    <!-- REQUIRED FOR SMAPPSERVICE: Authorize main app to install this helper -->
-    <key>SMAuthorizedClients</key>
-    <array>
-        <string>identifier "com.keypath.helperpoc" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = X2RKZ5TG99</string>
-    </array>
 </dict>
 </plist>

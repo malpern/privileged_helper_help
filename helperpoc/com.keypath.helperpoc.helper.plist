@@ -11,7 +11,7 @@
     <string>Contents/MacOS/helperpoc-helper</string>
     <key>AssociatedBundleIdentifiers</key>
     <array>
-        <string>com.keypath.helperpoc.helper</string>
+        <string>com.keypath.helperpoc</string>
     </array>
     <key>MachServices</key>
     <dict>

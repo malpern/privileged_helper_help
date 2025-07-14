@@ -14,7 +14,7 @@ import os.log
 
 @MainActor
 class HelperManager: ObservableObject {
-    private let helperPlistName = "com.keypath.helperpoc.helper"
+    private let helperPlistName = "com.keypath.helperpoc.helper.plist"
     private let helperMachServiceName = "com.keypath.helperpoc.xpc"
     private let logger = Logger(subsystem: "com.keypath.helperpoc", category: "HelperManager")
     
